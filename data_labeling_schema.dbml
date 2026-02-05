@@ -1,0 +1,110 @@
+Table roles {
+  id int [pk, increment]
+  name varchar [unique, not null, note: 'admin, project_owner, annotator, reviewer']
+  permissions json
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+Table users {
+  id int [pk, increment]
+  email varchar [unique, not null]
+  password_hash varchar [not null]
+  full_name varchar
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+Table user_roles {
+  id int [pk, increment]
+  user_id int [not null, ref: > users.id]
+  role_id int [not null, ref: > roles.id]
+  project_id int [ref: > projects.id, note: 'NULL = global role']
+  assigned_at timestamp [default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (user_id, role_id, project_id) [unique]
+  }
+}
+
+Table projects {
+  id int [pk, increment]
+  owner_id int [not null, ref: > users.id]
+  name varchar [not null]
+  description text
+  status enum('active', 'archived', 'deleted') [default: 'active']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+Table label_classes {
+  id int [pk, increment]
+  project_id int [not null, ref: > projects.id]
+  name varchar [not null]
+  color varchar [default: '#000000']
+  parent_id int [ref: > label_classes.id]
+  metadata json
+  indexes {
+    (project_id, name) [unique]
+  }
+}
+
+Table datasets {
+  id int [pk, increment]
+  project_id int [not null, ref: > projects.id]
+  name varchar [not null]
+  description text
+  version int [default: 1]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+Table media {
+  id int [pk, increment]
+  dataset_id int [not null, ref: > datasets.id]
+  file_name varchar [not null]
+  file_path varchar [not null]
+  media_type enum('image', 'video') [not null]
+  file_size bigint
+  width int
+  height int
+  duration int [note: 'seconds, for video']
+  metadata json
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+Table tasks {
+  id int [pk, increment]
+  media_id int [not null, ref: > media.id]
+  annotator_id int [ref: > users.id]
+  status enum('pending', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected') [default: 'pending']
+  priority int [default: 1]
+  assigned_at timestamp
+  completed_at timestamp
+  time_spent_seconds int [default: 0]
+}
+
+Table annotations {
+  id int [pk, increment]
+  task_id int [not null, ref: > tasks.id]
+  label_class_id int [ref: > label_classes.id]
+  data json [not null, note: 'bbox, polygon, keypoints, etc.']
+  created_by int [not null, ref: > users.id]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+Table reviews {
+  id int [pk, increment]
+  annotation_id int [not null, ref: > annotations.id]
+  reviewer_id int [not null, ref: > users.id]
+  status enum('approved', 'rejected', 'needs_correction') [not null]
+  feedback text
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+Table annotation_versions {
+  id int [pk, increment]
+  annotation_id int [not null, ref: > annotations.id]
+  version_num int [not null]
+  data json [not null]
+  changed_by int [not null, ref: > users.id]
+  changed_at timestamp [default: `CURRENT_TIMESTAMP`]
+  change_reason varchar
+}
